@@ -22,3 +22,10 @@ project/plugins/project/
 # ENSIME specific
 .ensime_cache/
 .ensime
+
+
+# MAC related
+.DS_Store
+
+# Intellij
+.idea/
