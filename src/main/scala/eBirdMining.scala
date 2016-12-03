@@ -10,6 +10,8 @@ import scala.collection.mutable.HashSet
 
 object eBirdMining {
 
+  def isAllDigits(x: String) = x forall Character.isDigit
+
   def main(args: Array[String]) {
 
     // Spark configuration
@@ -28,30 +30,26 @@ object eBirdMining {
 
     val ColumnsRDD = sc.textFile(args(1))
 
-    ColumnsRDD.foreach(k => println(k))
+    ColumnsRDD.collect().foreach(value => columnsSet.add(value.split('#')(0).toInt))
+
+    print(columnsSet.size)
 
 
-    ColumnsRDD.map(line => line.split(", ")).map(fields => fields(1)).persist()
-
-    ColumnsRDD.collect().foreach(value => columnsSet.add(value.toInt))
-
-    //print(columnsSet.size)
-
-
-    inputRDD.map(f => f.split(","))
-      .map(fields => {
-        var sb = "";
-        var index = 0;
-        fields.foreach(f => {
-          if(columnsSet.contains(index))
-            sb += "(" + index + ":" + f + ");"
-          index = index + 1
-        })
-
-        println(sb)
-
+    inputRDD.map(line => {
+      val fields = line.split(",")
+      var sb = ""
+      var index = 0
+      fields.foreach(col => {
+        if (columnsSet.contains(index)) {
+          if (isAllDigits(col) && col.toInt > 0 || !col.equals("")) {
+            sb += index + ":" + col + "#"
+          }
+        }
+        index = index + 1
       })
-
+      sb = sb.substring(0, sb.length-1)
+      sb
+    }).foreach(x => println(x))
 
     sc.stop()
   }
