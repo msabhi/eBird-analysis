@@ -18,6 +18,16 @@ object eBirdMining {
 
   def isAllDigits(x: String) = x forall Character.isDigit
 
+
+  def doClassification(_1: Int, _2: Array[Unit]) = _1 match {
+
+    case 0 => 0
+    case 1 => 1
+    case 2 => 2
+    case 3 => 3
+
+  }
+
   def main(args: Array[String]) {
 
     // Spark configuration
@@ -41,30 +51,67 @@ object eBirdMining {
     print(columnsSet.size)
 
 
-    val parsedData = inputRDD.map(line => {
+
+
+    //    val parsedData = inputRDD.map(line => {
+    //      val fields = line.split(",")
+    //      var sb = ""
+    //      var index = 0
+    //      var features = Array.ofDim[Double](columnsSet.size)
+    //      println("SIZE =>" + columnsSet.size + " " + features.length)
+    //      var arrayIndex = 0
+    //      fields.foreach(col => {
+    //        if (columnsSet.contains(index)) {
+    //          if (isAllDigits(col)) {
+    //            features(arrayIndex) = col.toDouble
+    //          }
+    //          else{
+    //            println("INDEX =>" + arrayIndex)
+    //            features(arrayIndex) = 1
+    //          }
+    //          arrayIndex = arrayIndex + 1
+    //        }
+    //        index = index + 1
+    //      })
+    //      LabeledPoint(features(0), Vectors.dense(features.tail))
+    //    })
+
+    val parsedData =  inputRDD.map(line => {
       val fields = line.split(",")
       var sb = ""
+      var mainPoint = "";
       var index = 0
-      var features = Array.ofDim[Double](columnsSet.size)
-      println("SIZE =>" + columnsSet.size + " " + features.length)
-      var arrayIndex = 0
       fields.foreach(col => {
         if (columnsSet.contains(index)) {
-          if (isAllDigits(col)) {
-            features(arrayIndex) = col.toDouble
+          if (isAllDigits(col) && col.toInt > 0 || !col.equals("")) {
+            if(index == 26 && !col.equals("Agelaius_phoeniceus")){
+              if(isAllDigits(col) && col.toInt > 0)
+                mainPoint = "1"
+              else
+                mainPoint = "0"
+            }
+            else
+              sb += col + "#"
           }
-          else{
-            println("INDEX =>" + arrayIndex)
-            features(arrayIndex) = 1
-          }
-          arrayIndex = arrayIndex + 1
         }
         index = index + 1
       })
-      LabeledPoint(features(0), Vectors.dense(features.tail))
-    })
+      sb = mainPoint + "#" + sb.substring(0, sb.length-1)
+      //(scala.util.Random.nextInt(4), sb)
+    }).persist()
 
-    val model = DecisionTree.train(parsedData, Classification, Gini, 4)
+
+    val splits = parsedData.randomSplit(Array(0.7, 0.3))
+    val (trainingData, testData) = (splits(0), splits(1))
+
+    //println(trainingData.count())
+    trainingData.map(line => (scala.util.Random.nextInt(4), Array(line)))
+      .reduceByKey((a,b) => a++b)
+      .map(a => doClassification(a._1, a._2))
+
+
+
+    //parsedData.keys.foreach(x => println(x))
 
     sc.stop()
   }
