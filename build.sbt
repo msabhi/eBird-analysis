@@ -22,7 +22,8 @@ resolvers ++= Seq(
   "All Spark Repository -> bintray-spark-packages" at "https://dl.bintray.com/spark-packages/maven/"
 )
 libraryDependencies ++= Seq(
-  "org.apache.spark"      %%  "spark-core"      %   sparkVersion  exclude("jline", "0.9.95")
+  "org.apache.spark"      %%  "spark-core"      %   sparkVersion  exclude("jline", "0.9.95"),
+  "org.apache.spark"      %%  "spark-mllib"     %   "1.3.1"
 
 )
 
