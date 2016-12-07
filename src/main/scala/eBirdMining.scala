@@ -26,9 +26,9 @@ object eBirdMining {
 
     var categoricalFeaturesInfo = Map[Int, Int]()
     categoricalFeaturesInfo += (2 -> 31)
-    categoricalFeaturesInfo += (3 -> 7)
-    categoricalFeaturesInfo += (10 -> 37)
-    categoricalFeaturesInfo += (11 -> 120)
+    categoricalFeaturesInfo += (3 -> 366)
+    categoricalFeaturesInfo += (7 -> 37)
+    categoricalFeaturesInfo += (8 -> 120)
 
     _1 match {
 
@@ -94,7 +94,7 @@ object eBirdMining {
 
     val parsedData =  inputRDD.map(line => {
       val fields = line.split(",")
-      if(!fields(0).equals("SAMPLING_EVENT_ID")) {
+      if(!fields(0).equals("SAMPLING_EVENT_ID") && !fields(26).equals("?") && !fields(26).equals("X")) {
         var index = 0
         var features = Array.ofDim[Double](columnsSet.size)
         var arrayIndex = 1
@@ -102,9 +102,8 @@ object eBirdMining {
         var keep = true
         fields.foreach(col => {
           if (columnsSet.contains(index) && keep && index != 26) {
-            if(col.trim.equals("?")){
-              println("COL " + col + " " + index)
-              keep = true
+            if(col.trim.equals("?") || col.trim.equals("X")){
+              keep = false
             }
             else{
               features(arrayIndex) = col.toDouble
@@ -114,15 +113,18 @@ object eBirdMining {
           index = index + 1
         })
 
-        if(keep) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
+        if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
       }else{null}}).filter(x=> x!=null).persist()
 
     parsedData.foreach(x=>println(x))
+    println(parsedData.count())
+
+
     //MLUtils.loadLibSVMFile()
     val splits = parsedData.randomSplit(Array(0.7, 0.3))
     val (trainingData, testData) = (splits(0), splits(1))
 
-    trainingData.foreach(x => println(x))
+    //trainingData.foreach(x => println(x))
     //println(trainingData.count())
 
     val decisionTreeRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2).persist()
@@ -130,9 +132,9 @@ object eBirdMining {
     val randomForestRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2).map(x=>x._2)
     val gradientBoostRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3).map(x=>x._2)
 
-    println(decisionTreeRDD.count())
-    decisionTreeRDD.foreach(println)
-    //val decisionTreeModel = doClassification(0, decisionTreeRDD)
+    //println(decisionTreeRDD.count())
+    //decisionTreeRDD.foreach(println)
+    val decisionTreeModel = doClassification(0, decisionTreeRDD)
     //.reduceByKey((a,b) => a++b)
     //.map(a => doClassification(a._1, sc.parallelize(a._2)))
 
