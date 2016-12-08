@@ -27,16 +27,19 @@ object eBirdMining {
     var categoricalFeaturesInfo = Map[Int, Int]()
     categoricalFeaturesInfo += (2 -> 31)
     categoricalFeaturesInfo += (3 -> 366)
-    categoricalFeaturesInfo += (7 -> 37)
-    categoricalFeaturesInfo += (8 -> 120)
+    categoricalFeaturesInfo += (7 -> 38)
+    categoricalFeaturesInfo += (8 -> 121)
 
-    _1 match {
+   // _1 match {
 
-      case 0 => DecisionTree.trainClassifier(_2, 4, categoricalFeaturesInfo, "gini", 9, 7000)
-      case 1 => RandomForest.trainClassifier(_2, Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
-      case 2 => GradientBoostedTrees.train(_2, BoostingStrategy.defaultParams("Classification"))
-      case 3 => new LogisticRegressionWithLBFGS().setNumClasses(10).run(_2)
-    }
+      //case 0 =>
+    //DecisionTree.trainClassifier(_2, 4, categoricalFeaturesInfo, "gini", 9, 7000)
+     // case 1 =>
+    RandomForest.trainClassifier(_2, Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
+     // case 2 =>
+    // GradientBoostedTrees.train(_2, BoostingStrategy.defaultParams("Classification"))
+     // case 3 => new LogisticRegressionWithLBFGS().setNumClasses(10).run(_2)
+ //   }
   }
 
 
@@ -65,32 +68,8 @@ object eBirdMining {
 
     ColumnsRDD.collect().foreach(value => columnsSet.add(value.split('#')(0).toInt))
 
-    print(columnsSet.size)
+    //print(columnsSet.size)
 
-    /*
-    val parsedData = inputRDD.map(line => {
-      val fields = line.split(",")
-      var sb = ""
-      var index = 0
-      var features = Array.ofDim[Double](columnsSet.size)
-      println("SIZE =>" + columnsSet.size + " " + features.length)
-      var arrayIndex = 0
-      fields.foreach(col => {
-        if (columnsSet.contains(index)) {
-          if (isAllDigits(col)) {
-            features(arrayIndex) = col.toDouble
-          }
-          else{
-            println("INDEX =>" + arrayIndex)
-            features(arrayIndex) = 1
-          }
-          arrayIndex = arrayIndex + 1
-        }
-        index = index + 1
-      })
-      LabeledPoint(features(0), Vectors.dense(features.tail))
-    })
-    */
 
     val parsedData =  inputRDD.map(line => {
       val fields = line.split(",")
@@ -116,7 +95,7 @@ object eBirdMining {
         if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
       }else{null}}).filter(x=> x!=null).persist()
 
-    parsedData.foreach(x=>println(x))
+    //parsedData.foreach(x=>println(x))
     println(parsedData.count())
 
 
@@ -127,19 +106,75 @@ object eBirdMining {
     //trainingData.foreach(x => println(x))
     //println(trainingData.count())
 
-    val decisionTreeRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2).persist()
-    val logisticRegressionRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1).map(x=>x._2)
-    val randomForestRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2).map(x=>x._2)
-    val gradientBoostRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3).map(x=>x._2)
+    //val decisionTreeRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2).persist()
+    //val logisticRegressionRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1).map(x=>x._2)
+    //val randomForestRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2).map(x=>x._2)
+    //val gradientBoostRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3).map(x=>x._2)
 
-    //println(decisionTreeRDD.count())
-    //decisionTreeRDD.foreach(println)
-    val decisionTreeModel = doClassification(0, decisionTreeRDD)
+
+    val decisionTreeModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
+    val logisticRegressionModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
+    val randomForestModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
+    val gradientBoostModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+
     //.reduceByKey((a,b) => a++b)
     //.map(a => doClassification(a._1, sc.parallelize(a._2)))
 
+    /*
+    val decisionTreePreds = testData.map { point =>
+      val prediction = decisionTreeModel.predict(point.features)
+      (point.label, prediction)
+    }
 
-    //val model = DecisionTree.train(parsedData, Classification, Gini, 4)
+    val logisticRegressionPreds = testData.map { point =>
+      val prediction = logisticRegressionModel.predict(point.features)
+      (point.label, prediction)
+    }
+
+    val randomForestPreds = testData.map { point =>
+      val prediction = randomForestModel.predict(point.features)
+      (point.label, prediction)
+    }
+
+    val gradientBoostPreds = testData.map { point =>
+      val prediction = gradientBoostModel.predict(point.features)
+      (point.label, prediction)
+    }
+    */
+
+    val EnsemblePredictionRDD = testData.map { point =>
+      val decisionTreePrediction = decisionTreeModel.predict(point.features)
+      val logisticRegressionPrediction = logisticRegressionModel.predict(point.features)
+      val randomForestPrediction = randomForestModel.predict(point.features)
+      val gradientBoostPrediction = gradientBoostModel.predict(point.features)
+      var avgPrediction = (decisionTreePrediction + logisticRegressionPrediction + randomForestPrediction + gradientBoostPrediction)/4
+      if(avgPrediction < 0.5)
+        avgPrediction = 0
+      else
+        avgPrediction = 1
+      (point.label, avgPrediction)
+
+    }
+
+    /*
+    val decisionTreeAccuracy = decisionTreePreds.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    val logisticRegressionAccuracy = logisticRegressionPreds.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    val randomForestAccuracy = randomForestPreds.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    val gradientBoostAccuracy = gradientBoostPreds.filter(r => r._1 == r._2).count.toDouble / testData.count()
+
+
+
+    println("Decision Tree Test Accuracy = " + decisionTreeAccuracy)
+    println("Logistic Regression Test Accuracy = " + logisticRegressionAccuracy)
+    println("Random Forest Test Accuracy = " + randomForestAccuracy)
+    println("Gradient Boost Test Accuracy = " + gradientBoostAccuracy)
+    */
+
+    val finalAccuracy = EnsemblePredictionRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    println("Accuracy = " + finalAccuracy)
+
+
+
 
     sc.stop()
   }
