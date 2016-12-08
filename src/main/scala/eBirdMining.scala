@@ -7,6 +7,7 @@ import java.lang.System
 import org.apache.spark.mllib.classification.{LogisticRegressionWithLBFGS, LogisticRegressionModel}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.model.DecisionTreeModel
 import org.apache.spark.mllib.tree.{GradientBoostedTrees, RandomForest, DecisionTree}
 import org.apache.spark.mllib.tree.impurity.{Variance, Gini}
 import org.apache.spark.mllib.util.MLUtils
@@ -30,16 +31,16 @@ object eBirdMining {
     categoricalFeaturesInfo += (7 -> 38)
     categoricalFeaturesInfo += (8 -> 121)
 
-   // _1 match {
+    _1 match {
 
-      //case 0 =>
-    //DecisionTree.trainClassifier(_2, 4, categoricalFeaturesInfo, "gini", 9, 7000)
-     // case 1 =>
+    case 0 =>
+    DecisionTree.trainClassifier(_2, 4, categoricalFeaturesInfo, "gini", 9, 7000)
+      case 1 =>
     RandomForest.trainClassifier(_2, Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
-     // case 2 =>
-    // GradientBoostedTrees.train(_2, BoostingStrategy.defaultParams("Classification"))
-     // case 3 => new LogisticRegressionWithLBFGS().setNumClasses(10).run(_2)
- //   }
+      case 2 =>
+     GradientBoostedTrees.train(_2, BoostingStrategy.defaultParams("Classification"))
+      case 3 => new LogisticRegressionWithLBFGS().setNumClasses(10).run(_2)
+   }
   }
 
 
@@ -111,11 +112,16 @@ object eBirdMining {
     //val randomForestRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2).map(x=>x._2)
     //val gradientBoostRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3).map(x=>x._2)
 
+    var categoricalFeaturesInfo = Map[Int, Int]()
+    categoricalFeaturesInfo += (2 -> 31)
+    categoricalFeaturesInfo += (3 -> 366)
+    categoricalFeaturesInfo += (7 -> 38)
+    categoricalFeaturesInfo += (8 -> 121)
 
-    val decisionTreeModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
-    val logisticRegressionModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
-    val randomForestModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
-    val gradientBoostModel = doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    val decisionTreeModel = DecisionTree.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
+    val randomForestModel = RandomForest.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
+    val logisticRegressionModel = GradientBoostedTrees.train(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
+    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
 
     //.reduceByKey((a,b) => a++b)
     //.map(a => doClassification(a._1, sc.parallelize(a._2)))
@@ -148,7 +154,7 @@ object eBirdMining {
       val randomForestPrediction = randomForestModel.predict(point.features)
       val gradientBoostPrediction = gradientBoostModel.predict(point.features)
       var avgPrediction = (decisionTreePrediction + logisticRegressionPrediction + randomForestPrediction + gradientBoostPrediction)/4
-      if(avgPrediction < 0.5)
+      if(avgPrediction < 0.50)
         avgPrediction = 0
       else
         avgPrediction = 1
