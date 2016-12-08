@@ -23,6 +23,34 @@ object eBirdMining {
 
   def isAllDigits(x: String) = x forall Character.isDigit
 
+  def parseData(line: String) = {
+
+
+    val fields = line.split(",")
+    if(!fields(0).equals("SAMPLING_EVENT_ID") && !fields(26).equals("?") && !fields(26).equals("X")) {
+      var index = 0
+      val features = Array.ofDim[Double](columnsSet.size)
+      var arrayIndex = 1
+      features(0) = if (fields(26).toInt > 0)  1 else 0
+      var keep = true
+      fields.foreach(col => {
+        if (columnsSet.contains(index) && keep && index != 26) {
+          if(col.trim.equals("?") || col.trim.equals("X")){
+            keep = false
+          }
+          else{
+            features(arrayIndex) = col.toDouble
+          }
+          arrayIndex += 1
+        }
+        index = index + 1
+      })
+
+      if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
+    }else{null}}
+
+
+  /*
   def doClassification(_1: Int, _2: RDD[LabeledPoint]) = {
 
     var categoricalFeaturesInfo = Map[Int, Int]()
@@ -42,7 +70,7 @@ object eBirdMining {
       case 3 => new LogisticRegressionWithLBFGS().setNumClasses(10).run(_2)
    }
   }
-
+  */
 
   def main(args: Array[String]) {
 
@@ -63,7 +91,7 @@ object eBirdMining {
     // Go through each line and map with lambda as Parser provided
 
 
-    var columnsSet = new mutable.HashSet[Int]()
+    val columnsSet = new mutable.HashSet[Int]()
 
     val ColumnsRDD = sc.textFile(args(1))
 
@@ -72,29 +100,7 @@ object eBirdMining {
     //print(columnsSet.size)
 
 
-    val parsedData =  inputRDD.map(line => {
-      val fields = line.split(",")
-      if(!fields(0).equals("SAMPLING_EVENT_ID") && !fields(26).equals("?") && !fields(26).equals("X")) {
-        var index = 0
-        var features = Array.ofDim[Double](columnsSet.size)
-        var arrayIndex = 1
-        features(0) = if (fields(26).toInt > 0)  1 else 0
-        var keep = true
-        fields.foreach(col => {
-          if (columnsSet.contains(index) && keep && index != 26) {
-            if(col.trim.equals("?") || col.trim.equals("X")){
-              keep = false
-            }
-            else{
-              features(arrayIndex) = col.toDouble
-            }
-            arrayIndex += 1
-          }
-          index = index + 1
-        })
-
-        if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
-      }else{null}}).filter(x=> x!=null).persist()
+    val parsedData =  inputRDD.map(line => parseData(line)).filter(x=> x!=null).persist()
 
     //parsedData.foreach(x=>println(x))
     println(parsedData.count())
@@ -118,10 +124,14 @@ object eBirdMining {
     categoricalFeaturesInfo += (7 -> 38)
     categoricalFeaturesInfo += (8 -> 121)
 
-    val decisionTreeModel = DecisionTree.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
-    val randomForestModel = RandomForest.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
-    val logisticRegressionModel = GradientBoostedTrees.train(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
-    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))//doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    val decisionTreeModel = DecisionTree.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
+    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
+    val randomForestModel = RandomForest.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
+    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
+    val logisticRegressionModel = GradientBoostedTrees.train(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
+    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
+    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
 
     //.reduceByKey((a,b) => a++b)
     //.map(a => doClassification(a._1, sc.parallelize(a._2)))
@@ -148,11 +158,14 @@ object eBirdMining {
     }
     */
 
-    val EnsemblePredictionRDD = testData.map { point =>
+    val EnsembleValidationRDD = testData.map { point =>
+
       val decisionTreePrediction = decisionTreeModel.predict(point.features)
       val logisticRegressionPrediction = logisticRegressionModel.predict(point.features)
       val randomForestPrediction = randomForestModel.predict(point.features)
       val gradientBoostPrediction = gradientBoostModel.predict(point.features)
+
+      // Add weights in future for each model to do weighted mean.
       var avgPrediction = (decisionTreePrediction + logisticRegressionPrediction + randomForestPrediction + gradientBoostPrediction)/4
       if(avgPrediction < 0.50)
         avgPrediction = 0
@@ -176,11 +189,13 @@ object eBirdMining {
     println("Gradient Boost Test Accuracy = " + gradientBoostAccuracy)
     */
 
-    val finalAccuracy = EnsemblePredictionRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    val finalAccuracy = EnsembleValidationRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
     println("Accuracy = " + finalAccuracy)
 
 
 
+
+    var predictionData =
 
     sc.stop()
   }
