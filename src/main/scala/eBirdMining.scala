@@ -10,14 +10,12 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.model.{DecisionTreeModel, GradientBoostedTreesModel, RandomForestModel}
 import org.apache.spark.mllib.tree.{DecisionTree, GradientBoostedTrees, RandomForest}
 import org.apache.spark.mllib.tree.impurity.{Gini, Variance}
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.tree.configuration.Algo._
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.tree.configuration.{BoostingStrategy, Strategy}
 
 import scala.collection.mutable
-import scala.collection.mutable.HashSet
+
 
 object eBirdMining {
 
@@ -57,7 +55,7 @@ object eBirdMining {
       var index = 0
       val features = Array.ofDim[Double](columnsSet.size)
       var arrayIndex = 1
-      features(0) = fields(0).substring(1,fields(0).length-1).toDouble
+      features(0) = fields(0).substring(1,fields(0).length).toDouble
       fields.foreach(col => {
         if (columnsSet.contains(index) && index != 26) {
           if(col.trim.equals("?") || col.trim.equals("X")){
@@ -137,7 +135,6 @@ object eBirdMining {
     categoricalFeaturesInfo += (10 -> 121)
 
     val randomTrainingData = trainingData.map(line => (scala.util.Random.nextInt(4), line))
-
     val decisionTreeModel = DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
     val randomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
     val logisticRegressionModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
@@ -151,11 +148,14 @@ object eBirdMining {
 
     println("Accuracy = " + finalAccuracy)
 
-    var predictionData = inputRDD.map(line => parseTrainingData(line, columnsSet)).persist()
+
+    val predictionInput = sc.textFile(args(2))
+    val predictionData = predictionInput.map(line => parseTestingData(line, columnsSet)).filter(x=> x!=null).persist()
+
 
     val EnsemblePredictionRDD = predictionData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
 
-    EnsemblePredictionRDD.map(line=> "S"+line._1 + "," + line._2).saveAsTextFile(args(2))
+    EnsemblePredictionRDD.map(line=> "S"+line._1.toInt + "," + line._2).saveAsTextFile(args(3))
 
     sc.stop()
   }

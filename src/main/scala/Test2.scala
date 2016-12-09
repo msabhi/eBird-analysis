@@ -26,7 +26,7 @@ object Test2 {
 
 
   // parse the data to convert into Features Array
-  def parseData(line: String, columnsSet: mutable.HashSet[Int]) = {
+  def parseTrainingData(line: String, columnsSet: mutable.HashSet[Int]) = {
     val fields = line.split(",")
     if(!fields(0).equals("SAMPLING_EVENT_ID") && !fields(26).equals("?") && !fields(26).equals("X")) {
       var index = 0
@@ -36,7 +36,7 @@ object Test2 {
       var keep = true
       fields.foreach(col => {
         if (columnsSet.contains(index) && keep && index != 26) {
-          if((col.trim.equals("?") || col.trim.equals("X")) && (index != 25)){
+          if(col.trim.equals("?") || col.trim.equals("X")){
             keep = false
           }
           else{
@@ -47,7 +47,31 @@ object Test2 {
         index = index + 1
       })
 
-      if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
+      LabeledPoint(features(0), Vectors.dense(features.tail))
+    }else{null}}
+
+  // parse the data to convert into Features Array
+  def parseTestingData(line: String, columnsSet: mutable.HashSet[Int]) = {
+    val fields = line.split(",")
+    if(!fields(0).equals("SAMPLING_EVENT_ID")) {
+      var index = 0
+      val features = Array.ofDim[Double](columnsSet.size)
+      var arrayIndex = 1
+      features(0) = fields(0).substring(1,fields(0).length-1).toDouble
+      fields.foreach(col => {
+        if (columnsSet.contains(index) && index != 26) {
+          if(col.trim.equals("?") || col.trim.equals("X")){
+            features(arrayIndex) = 0.0
+          }
+          else{
+            features(arrayIndex) = col.toDouble
+          }
+          arrayIndex += 1
+        }
+        index = index + 1
+      })
+
+      LabeledPoint(features(0), Vectors.dense(features.tail))
     }else{null}}
 
 
@@ -78,9 +102,6 @@ object Test2 {
     conf.setMaster("local")
     val sc = new SparkContext(conf)
 
-    // val month = 5, 01 -12
-    //val bcr = 1-37
-    // val OMERNIK_L3_ECOREGION = 962, 1-120
 
     // Load the bz2files into RDD
     val inputRDD = sc.textFile(args(0))
@@ -97,11 +118,47 @@ object Test2 {
     //print(columnsSet.size)
 
 
-    val parsedData =  inputRDD.map(line => parseData(line, columnsSet)).filter(x=> x!=null).foreach(line => println(line))
+//    val parsedData =  inputRDD.map(line => parseTrainingData(line, columnsSet)).filter(x=> x!=null).persist()
+//
+//    println(parsedData.count())
+//
+//
+//    val splits = parsedData.randomSplit(Array(0.7, 0.3))
+//    val (trainingData, testData) = (splits(0), splits(1))
+//
+//
+//    var categoricalFeaturesInfo = Map[Int, Int]()
+//    categoricalFeaturesInfo += (2 -> 31)
+//    categoricalFeaturesInfo += (3 -> 367)
+//    categoricalFeaturesInfo += (9 -> 38)
+//    categoricalFeaturesInfo += (10 -> 121)
+//
+//    val randomTrainingData = trainingData.map(line => (scala.util.Random.nextInt(4), line))
+//    val decisionTreeModel = DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
+//    val randomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
+//    val logisticRegressionModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
+//    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+//
+//
+//
+//
+//    val EnsembleValidationRDD = testData.map(point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel))
+//    val finalAccuracy = EnsembleValidationRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
+//
+//    println("Accuracy = " + finalAccuracy)
+
+    val predictionInput = sc.textFile(args(2))
+    println(predictionInput.map(line => parseTestingData(line, columnsSet)).filter(x=> x!=null).count())
 
 
 
-      sc.stop()
+
+
+   // val EnsemblePredictionRDD = predictionData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
+
+    //EnsemblePredictionRDD.map(line=> "S"+line._1 + "," + line._2).saveAsTextFile(args(2))
+
+    sc.stop()
   }
 
 
