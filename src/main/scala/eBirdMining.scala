@@ -10,6 +10,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.model.{DecisionTreeModel, GradientBoostedTreesModel, RandomForestModel}
 import org.apache.spark.mllib.tree.{DecisionTree, GradientBoostedTrees, RandomForest}
 import org.apache.spark.mllib.tree.impurity.{Gini, Variance}
+import org.apache.spark.rdd.RDD
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.tree.configuration.{BoostingStrategy, Strategy}
@@ -95,65 +96,69 @@ object eBirdMining {
 
 
     // Spark configuration
-    val conf = new SparkConf()
+    val conf : SparkConf= new SparkConf()
     conf.setAppName("Training")
     conf.setMaster("local")
-    val sc = new SparkContext(conf)
-
-    // val month = 5, 01 -12
-    //val bcr = 1-37
-    // val OMERNIK_L3_ECOREGION = 962, 1-120
-
-    // Load the bz2files into RDD
-    val inputRDD = sc.textFile(args(0))
+    val sc : SparkContext = new SparkContext(conf)
+    val inputRDD : RDD[String] = sc.textFile(args(0))
 
     // Go through each line and map with lambda as Parser provided
 
 
-    val columnsSet = new mutable.HashSet[Int]()
+    val columnsSet : mutable.HashSet[Int] = new mutable.HashSet[Int]()
+    val columns = Array[Int] (2,
+      3,
+      5,
+      6,
+      12,
+      13,
+      14,
+      16,
+      26,
+      955,
+      960,
+      962,
+      963,
+      964,
+      965,
+      966,
+      967)
 
-    val ColumnsRDD = sc.textFile("src/resources/categories")
+    columns.foreach(value => columnsSet.add(value))
 
-    ColumnsRDD.collect().foreach(value => columnsSet.add(value.split('#')(0).toInt))
+    val parsedData : RDD[LabeledPoint] =  inputRDD.map(line => parseTrainingData(line, columnsSet)).filter(x=> x!=null).persist()
 
-    //print(columnsSet.size)
+    val splits : Array[RDD[LabeledPoint]] = parsedData.randomSplit(Array(0.7, 0.3))
 
-
-    val parsedData =  inputRDD.map(line => parseTrainingData(line, columnsSet)).filter(x=> x!=null).persist()
-
-    println(parsedData.count())
+    val (trainingData : RDD[LabeledPoint], testData : RDD[LabeledPoint]) = (splits(0), splits(1))
 
 
-    val splits = parsedData.randomSplit(Array(0.7, 0.3))
-    val (trainingData, testData) = (splits(0), splits(1))
-
-
-    var categoricalFeaturesInfo = Map[Int, Int]()
+    var categoricalFeaturesInfo : Map[Int, Int] = Map[Int, Int]()
     categoricalFeaturesInfo += (2 -> 31)
     categoricalFeaturesInfo += (3 -> 367)
     categoricalFeaturesInfo += (9 -> 38)
     categoricalFeaturesInfo += (10 -> 121)
 
-    val randomTrainingData = trainingData.map(line => (scala.util.Random.nextInt(4), line))
-    val decisionTreeModel = DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
-    val randomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
-    val logisticRegressionModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
-    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    val randomTrainingData : RDD[(Int, LabeledPoint)] = trainingData.map(line => (scala.util.Random.nextInt(4), line))
+    val decisionTreeModel : DecisionTreeModel= DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
+    val randomForestModel : RandomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
+    val gradientBoostModel : GradientBoostedTreesModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
+    val logisticRegressionModel : LogisticRegressionModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
 
 
 
 
-    val EnsembleValidationRDD = testData.map(point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel))
+    val EnsembleValidationRDD : RDD[(Double, Double)]= testData.map(point => predictLabel(point, decisionTreeModel,  gradientBoostModel , randomForestModel,logisticRegressionModel))
     val finalAccuracy = EnsembleValidationRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
 
     println("Accuracy = " + finalAccuracy)
 
 
-    val predictionInput = sc.textFile(args(1))
-    val predictionData = predictionInput.map(line => parseTestingData(line, columnsSet)).filter(x=> x!=null).persist()
+    val predictionInput : RDD[String] = sc.textFile(args(1))
+    val predictionData : RDD[LabeledPoint]= predictionInput.map(line => parseTestingData(line, columnsSet)).filter(x=> x!=null).persist()
 
 
-    val EnsemblePredictionRDD = predictionData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
+    val EnsemblePredictionRDD : RDD[(Double, Double)]= predictionData.map { point => predictLabel(point, decisionTreeModel, gradientBoostModel, randomForestModel, logisticRegressionModel)}
 
     EnsemblePredictionRDD.map(line=> "S"+line._1.toInt + "," + line._2).saveAsTextFile(args(2))
 
