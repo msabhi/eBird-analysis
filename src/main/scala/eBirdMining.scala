@@ -149,13 +149,13 @@ object eBirdMining {
     println("Accuracy = " + finalAccuracy)
 
 
-    val predictionInput = sc.textFile(args(2))
+    val predictionInput = sc.textFile(args(1))
     val predictionData = predictionInput.map(line => parseTestingData(line, columnsSet)).filter(x=> x!=null).persist()
 
 
     val EnsemblePredictionRDD = predictionData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
 
-    EnsemblePredictionRDD.map(line=> "S"+line._1.toInt + "," + line._2).saveAsTextFile(args(3))
+    EnsemblePredictionRDD.map(line=> "S"+line._1.toInt + "," + line._2).saveAsTextFile(args(2))
 
     sc.stop()
   }
