@@ -112,7 +112,7 @@ object eBirdMining {
 
     val columnsSet = new mutable.HashSet[Int]()
 
-    val ColumnsRDD = sc.textFile(args(1))
+    val ColumnsRDD = sc.textFile("src/resources/categories")
 
     ColumnsRDD.collect().foreach(value => columnsSet.add(value.split('#')(0).toInt))
 
