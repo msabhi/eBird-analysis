@@ -47,7 +47,7 @@ object eBirdMining {
         index = index + 1
       })
 
-      if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
+      LabeledPoint(features(0), Vectors.dense(features.tail))
     }else{null}}
 
   // parse the data to convert into Features Array
@@ -57,12 +57,11 @@ object eBirdMining {
       var index = 0
       val features = Array.ofDim[Double](columnsSet.size)
       var arrayIndex = 1
-      features(0) = 0
-      var keep = true
+      features(0) = fields(0).substring(1,fields(0).length-1).toDouble
       fields.foreach(col => {
-        if (columnsSet.contains(index) && keep && index != 26) {
+        if (columnsSet.contains(index) && index != 26) {
           if(col.trim.equals("?") || col.trim.equals("X")){
-            keep = false
+              features(arrayIndex) = 0.0
           }
           else{
             features(arrayIndex) = col.toDouble
@@ -72,7 +71,7 @@ object eBirdMining {
         index = index + 1
       })
 
-      if(keep.equals(true)) {LabeledPoint(features(0), Vectors.dense(features.tail))} else {null}
+      LabeledPoint(features(0), Vectors.dense(features.tail))
     }else{null}}
 
 
@@ -124,50 +123,41 @@ object eBirdMining {
 
     val parsedData =  inputRDD.map(line => parseTrainingData(line, columnsSet)).filter(x=> x!=null).persist()
 
-    //parsedData.foreach(x=>println(x))
     println(parsedData.count())
 
 
-    //MLUtils.loadLibSVMFile()
     val splits = parsedData.randomSplit(Array(0.7, 0.3))
     val (trainingData, testData) = (splits(0), splits(1))
 
-    //trainingData.foreach(x => println(x))
-    //println(trainingData.count())
-
-    //val decisionTreeRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2).persist()
-    //val logisticRegressionRDD = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1).map(x=>x._2)
-    //val randomForestRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2).map(x=>x._2)
-    //val gradientBoostRdd = trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3).map(x=>x._2)
 
     var categoricalFeaturesInfo = Map[Int, Int]()
     categoricalFeaturesInfo += (2 -> 31)
-    categoricalFeaturesInfo += (3 -> 366)
-    categoricalFeaturesInfo += (7 -> 38)
-    categoricalFeaturesInfo += (8 -> 121)
+    categoricalFeaturesInfo += (3 -> 367)
+    categoricalFeaturesInfo += (9 -> 38)
+    categoricalFeaturesInfo += (10 -> 121)
 
-    val decisionTreeModel = DecisionTree.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
-    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=0 || x._1 == null).map(x => x._2))
-    val randomForestModel = RandomForest.trainClassifier(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
-    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=1 || x._1 == null).map(x => x._2))
-    val logisticRegressionModel = GradientBoostedTrees.train(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
-    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=2 || x._1 == null).map(x => x._2))
-    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
-    //doClassification(0, trainingData.map(line => (scala.util.Random.nextInt(4), line)).filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    val randomTrainingData = trainingData.map(line => (scala.util.Random.nextInt(4), line))
+
+    val decisionTreeModel = DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
+    val randomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
+    val logisticRegressionModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
+    val gradientBoostModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
 
 
 
-    val EnsemblePredictionRDD = testData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
 
-    val finalAccuracy = EnsemblePredictionRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
+    val EnsembleValidationRDD = testData.map(point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel))
+    val finalAccuracy = EnsembleValidationRDD.filter(r => r._1 == r._2).count.toDouble / testData.count()
+
     println("Accuracy = " + finalAccuracy)
 
+    var predictionData = inputRDD.map(line => parseTrainingData(line, columnsSet)).persist()
 
+    val EnsemblePredictionRDD = predictionData.map { point => predictLabel(point, decisionTreeModel, logisticRegressionModel, randomForestModel, gradientBoostModel)}
 
+    EnsemblePredictionRDD.map(line=> "S"+line._1 + "," + line._2).saveAsTextFile(args(2))
 
-    var predictionData = inputRDD.map(line => parseTrainingData(line, columnsSet)).filter(x=> x!=null).persist()
-
-      sc.stop()
+    sc.stop()
   }
 
 
