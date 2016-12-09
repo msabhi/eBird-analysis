@@ -5,7 +5,7 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
-mainClass in Compile := Some("ClassName")
+mainClass in Compile := Some("eBirdMining")
 
 val overrideScalaVersion = "2.11.8"
 val sparkVersion = "1.5.0"

@@ -25,11 +25,11 @@ object eBirdMining {
 
   // parse the data to convert into Features Array
   def parseTrainingData(line: String, columnsSet: mutable.HashSet[Int]) = {
-    val fields = line.split(",")
+    val fields: Array[String] = line.split(",")
     if(!fields(0).equals("SAMPLING_EVENT_ID") && !fields(26).equals("?") && !fields(26).equals("X")) {
-      var index = 0
-      val features = Array.ofDim[Double](columnsSet.size)
-      var arrayIndex = 1
+      var index: Int = 0
+      val features: Array[Double] = Array.ofDim[Double](columnsSet.size)
+      var arrayIndex: Int = 1
       features(0) = if (fields(26).toInt > 0)  1 else 0
       var keep = true
       fields.foreach(col => {
@@ -50,11 +50,11 @@ object eBirdMining {
 
   // parse the data to convert into Features Array
   def parseTestingData(line: String, columnsSet: mutable.HashSet[Int]) = {
-    val fields = line.split(",")
+    val fields: Array[String] = line.split(",")
     if(!fields(0).equals("SAMPLING_EVENT_ID")) {
-      var index = 0
-      val features = Array.ofDim[Double](columnsSet.size)
-      var arrayIndex = 1
+      var index: Int = 0
+      val features: Array[Double] = Array.ofDim[Double](columnsSet.size)
+      var arrayIndex: Int = 1
       features(0) = fields(0).substring(1,fields(0).length).toDouble
       fields.foreach(col => {
         if (columnsSet.contains(index) && index != 26) {
@@ -76,13 +76,13 @@ object eBirdMining {
 
   def predictLabel(point: LabeledPoint, decisionTreeModel: DecisionTreeModel, logisticRegressionModel: GradientBoostedTreesModel,
                    randomForestModel: RandomForestModel, gradientBoostModel: LogisticRegressionModel) = {
-    val decisionTreePrediction = decisionTreeModel.predict(point.features)
-    val logisticRegressionPrediction = logisticRegressionModel.predict(point.features)
-    val randomForestPrediction = randomForestModel.predict(point.features)
-    val gradientBoostPrediction = gradientBoostModel.predict(point.features)
+    val decisionTreePrediction: Double = decisionTreeModel.predict(point.features)
+    val logisticRegressionPrediction: Double = logisticRegressionModel.predict(point.features)
+    val randomForestPrediction: Double = randomForestModel.predict(point.features)
+    val gradientBoostPrediction: Double = gradientBoostModel.predict(point.features)
 
     // Add weights in future for each model to do weighted mean.
-    var avgPrediction = (decisionTreePrediction + logisticRegressionPrediction +
+    var avgPrediction: Double = (decisionTreePrediction + logisticRegressionPrediction +
       randomForestPrediction + gradientBoostPrediction)/4
     if(avgPrediction < 0.50)
       avgPrediction = 0
