@@ -29,7 +29,7 @@ object eBirdValidation {
       var index: Int = 0
       val features: Array[Double] = Array.ofDim[Double](columnsSet.size)  // initialize a features array
       var arrayIndex: Int = 1
-      features(0) = if (fields(26).toInt > 5)  1 else 0  // if the label is having more birds, we consider the species to be present
+      features(0) = if (fields(26).toInt > 30)  1 else 0  // if the label is having more birds, we consider the species to be present
       fields.foreach(col => {
         if (columnsSet.contains(index)  && index != 26) {
           if(col.trim.equals("?") || col.trim.equals("X")){

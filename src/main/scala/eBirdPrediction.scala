@@ -49,7 +49,7 @@ object eBirdPrediction {
     val randomForestPrediction: Double = randomForestModel.predict(point.features)
     val gradientBoostPrediction: Double = gradientBoostModel.predict(point.features)
 
-    // Add weights in future for each model to do weighted mean.
+    // take the mean of the predictions of all models
     var avgPrediction: Double = (decisionTreePrediction + logisticRegressionPrediction +
       randomForestPrediction + gradientBoostPrediction)/4
     if(avgPrediction < 0.50)
