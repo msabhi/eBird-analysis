@@ -29,7 +29,7 @@ object eBirdValidation {
       var index: Int = 0
       val features: Array[Double] = Array.ofDim[Double](columnsSet.size)  // initialize a features array
       var arrayIndex: Int = 1
-      features(0) = if (fields(26).toInt > 30)  1 else 0  // if the label is having more birds, we consider the species to be present
+      features(0) = if (fields(26).toInt >= 20)  1 else 0  // if the label is having more birds, we consider the species to be present
       fields.foreach(col => {
         if (columnsSet.contains(index)  && index != 26) {
           if(col.trim.equals("?") || col.trim.equals("X")){
@@ -128,10 +128,14 @@ object eBirdValidation {
 
     // Prepare random sample for all the 4 models - Decisiontree, Randomforest, graidientboost, logisticregression
     val randomTrainingData : RDD[(Int, LabeledPoint)] = trainingData.map(line => (scala.util.Random.nextInt(4), line))
-    val decisionTreeModel : DecisionTreeModel= DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 4, categoricalFeaturesInfo, "gini", 9, 7000)
-    val randomForestModel : RandomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 4, "auto", 12345)
-    val gradientBoostModel : GradientBoostedTreesModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), BoostingStrategy.defaultParams("Classification"))
-    val logisticRegressionModel : LogisticRegressionModel = new LogisticRegressionWithLBFGS().setNumClasses(10).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
+    val decisionTreeModel : DecisionTreeModel= DecisionTree.trainClassifier(randomTrainingData.filter(x => x._1!=0 || x._1 == null).map(x => x._2), 2, categoricalFeaturesInfo, "gini", 9, 4000)
+    val randomForestModel : RandomForestModel = RandomForest.trainClassifier(randomTrainingData.filter(x => x._1!=1 || x._1 == null).map(x => x._2), Strategy.defaultStrategy("Classification"), 10, "auto", 4000)
+    var boostingStrategy = BoostingStrategy.defaultParams("Classification")
+    boostingStrategy.setNumIterations(5)
+    boostingStrategy.treeStrategy.setNumClasses(2)
+    boostingStrategy.treeStrategy.setMaxDepth(9)
+    val gradientBoostModel : GradientBoostedTreesModel = GradientBoostedTrees.train(randomTrainingData.filter(x => x._1!=2 || x._1 == null).map(x => x._2), boostingStrategy)
+    val logisticRegressionModel : LogisticRegressionModel = new LogisticRegressionWithLBFGS().setNumClasses(2).run(randomTrainingData.filter(x => x._1!=3 || x._1 == null).map(x => x._2))
 
 
 
